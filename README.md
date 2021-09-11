@@ -1,2 +1,7 @@
-# big-add-analyzer-interpreter
- Lexical Analyzer and Interpreter for Big Add Language with C
+# Lexical Analyzer and Interpreter for Big Add Language
+**Design and Problem Analysis**  
+The challenge at hand is one of code analysis and execution. We must examine an input file whose name is provided by the user. We have a custom language called "Big Add Language" that features classic declarations and basic addition, subtraction, assignment, loop, and code block conditions in this special situation. Lexical Analyzer takes a code file analysis file and feeds it to the interpreter with declarations, errors, comments, data types, and assignments. When the analyzer detects an error, it will send it to the interpreter, who will display it to the programmer before terminating the code.  
+Every line in the input file will be analyzed by the interpreter, and the file will be executed using the tokens provided. To begin, the interpreter will look for the first token. If the analyzer finds a token that is legitimate, the interpreter will add it to the stack and utilise it for the calculations that are expected. If the interpreter cannot detect a token on a line, it will ignore whitespace and comments when searching for another line. As a result, if the analyzer finds a comment, it will take it out of the code because comments do not run in the compiler. If the analyzer comes across a loop or a calculation, it will identify it as a loop or a calculation. This will be done by the analyzer for each line before passing them on to the interpreter. If it detects an error, it will terminate the code and display the results to the programmer.  
+
+**Code Tests**  
+Code was written in the C programming language, developed in Code Blocks 20.03 and compiled with the standard Code Blocks compiler.  
