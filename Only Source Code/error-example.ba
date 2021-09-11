@@ -1,0 +1,11 @@
+int my_Var. 
+move -20 to my_Var.
+int sum.
+add -21 to sum. 
+int t.
+move 5 to t. 
+sub t from myVar. 
+out myVar.
+loop 42 times [add 7 to myVar.].
+loop 32 times [add 5 to myVar.].
+out myVar.

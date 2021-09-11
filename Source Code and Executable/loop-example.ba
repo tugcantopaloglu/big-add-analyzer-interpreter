@@ -1,0 +1,13 @@
+int i.
+int sum.
+move 8 to i.
+loop i times
+[
+	out i, newline.
+	add i to sum.
+]
+out newline, newline.
+
+move 20 to i.
+loop i times out "X".
+out newline, "i=", i, newline , "sum=" , sum.
