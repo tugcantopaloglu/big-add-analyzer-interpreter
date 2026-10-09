@@ -10,10 +10,10 @@ repository = Path(__file__).resolve().parents[1]
 checks = 0
 
 
-def run(path, expected=0, input_text=""):
+def run(path, expected=0, input_text="", timeout=10):
     global checks
     result = subprocess.run([str(executable), str(path)], input=input_text,
-                            capture_output=True, text=True, timeout=10)
+                            capture_output=True, text=True, timeout=timeout)
     assert result.returncode == expected, (path, result.returncode, result.stdout, result.stderr)
     checks += 1
     return result.stdout + result.stderr
@@ -73,6 +73,11 @@ with tempfile.TemporaryDirectory(prefix="badd regression.") as directory:
         path = scratch / "case.ba"
         path.write_bytes(source.encode("latin1"))
         assert marker in run(path, expected)
+
+    for keyword in ("to", "from", "times", "newline"):
+        path = scratch / "standalone-keyword.ba"
+        path.write_text(keyword + ".")
+        assert "Unexpected keyword at statement start" in run(path, 1, timeout=3)
 
     path = scratch / "bare.ba"
     path.write_text('out "bare filename".')

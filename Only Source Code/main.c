@@ -777,6 +777,8 @@ int main(int argc, char *argv[]) {
 
                 l_starts[l_level] = i;
                 continue;
+            } else if (strcmp(tokens[i].value, "]") != 0) {
+                return error(1, "Unexpected keyword at statement start", tokens[i]);
             }
 
             //interpreted lets check if it was in loop
