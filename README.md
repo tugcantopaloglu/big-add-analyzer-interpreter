@@ -3,6 +3,36 @@
 The challenge at hand is one of code analysis and execution. We must examine an input file whose name is provided by the user. We have a custom language called "Big Add Language" that features classic declarations and basic addition, subtraction, assignment, loop, and code block conditions in this special situation. Lexical Analyzer takes a code file analysis file and feeds it to the interpreter with declarations, errors, comments, data types, and assignments. When the analyzer detects an error, it will send it to the interpreter, who will display it to the programmer before terminating the code.  
 Every line in the input file will be analyzed by the interpreter, and the file will be executed using the tokens provided. To begin, the interpreter will look for the first token. If the analyzer finds a token that is legitimate, the interpreter will add it to the stack and utilise it for the calculations that are expected. If the interpreter cannot detect a token on a line, it will ignore whitespace and comments when searching for another line. As a result, if the analyzer finds a comment, it will take it out of the code because comments do not run in the compiler. If the analyzer comes across a loop or a calculation, it will identify it as a loop or a calculation. This will be done by the analyzer for each line before passing them on to the interpreter. If it detects an error, it will terminate the code and display the results to the programmer.  
 
+## Build and run
+
+Use a C11 compiler and build the source rather than relying on the historical executable or object files committed with the project. The two `main.c` copies are kept identical.
+
+```sh
+gcc -std=c11 -Wall -Wextra "Only Source Code/main.c" -o bigadd
+./bigadd "Only Source Code/standart-example.ba"
+```
+
+In a Visual Studio developer command prompt:
+
+```bat
+cl /std:c11 /W3 "Only Source Code\main.c" /Fe:bigadd.exe
+bigadd.exe "Only Source Code\standart-example.ba"
+```
+
+Pass one filename or run without arguments to enter it at the prompt. A filename without an extension receives `.ba`; an existing extension must be `.ba`. Paths can contain spaces. A missing or invalid file and invalid source return a nonzero exit status. The program exits after interpreting without waiting for another keypress.
+
+The language supports declarations, signed decimal assignment/addition/subtraction, `out` strings or variables, `newline`, `{...}` comments and counted loops with optional `[...]` blocks. Loop variables count down to zero. Integers allow up to 100 digits; identifiers start with an alphabetic character and contain at most 20 alphanumeric or underscore characters. Input is bounded to 996 tokens, 100 symbols, 100 nested loops and 104 bytes per string. The analyzer reports the first source error.
+
+## Regression checks
+
+After compiling, run the standard-library Python test runner with the executable path:
+
+```sh
+python3 tests/regression.py ./bigadd
+```
+
+The checks run all checked-in examples, signed and 100-digit arithmetic, format-string literals, malformed input and capacity limits in temporary directories. CI builds with GCC and address/undefined-behavior sanitizers. AddressSanitizer leak detection is disabled for this interpreter because its existing value allocation design retains values until process exit; bounds and undefined-behavior checks remain enabled. The historical test screenshots below are retained as project context.
+
 **Code Tests**  
 Code was written in the C programming language, developed in Code Blocks 20.03 and compiled with the standard Code Blocks compiler.  
 

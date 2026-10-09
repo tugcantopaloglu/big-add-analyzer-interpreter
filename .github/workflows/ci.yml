@@ -1,0 +1,21 @@
+name: C regression checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build with sanitizers
+        run: gcc -std=c11 -Wall -Wextra -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie -no-pie "Only Source Code/main.c" -o bigadd
+      - name: Run regression cases
+        env:
+          ASAN_OPTIONS: detect_leaks=0:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1
+        run: python3 tests/regression.py ./bigadd

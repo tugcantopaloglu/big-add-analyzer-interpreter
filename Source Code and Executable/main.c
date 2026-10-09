@@ -1,13 +1,35 @@
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <ctype.h>
 #define MAX_DIGIT 100
 #define INITIAL_MAX 10
+#define TOKEN_LIMIT 1000
+#define FILENAME_LIMIT 1024
 #ifndef max
 #define max(a, b) ((a) > (b) ? (a) : (b)) //calculating max number between a and b. returning the maximum number
 #endif
+
+static char *duplicate(const char *value) {
+    size_t length = strlen(value) + 1;
+    char *copy = malloc(length);
+    if (!copy) {
+        fputs("Memory allocation failed.\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+    memcpy(copy, value, length);
+    return copy;
+}
+
+static void reverse(char *value) {
+    size_t length = strlen(value);
+    for (size_t i = 0; i < length / 2; i++) {
+        char temp = value[i];
+        value[i] = value[length - i - 1];
+        value[length - i - 1] = temp;
+    }
+}
 
 //for easy use this time I used structs for types. which I didnt use in my first project and failed to show error lines and columns. this time program can show exact location of first error
 //structs
@@ -57,17 +79,20 @@ char *add(char *a, char *b) { //add keyword operations
     } else if (a[0] != '-' && b[0] == '-') { //2 + (-4) = 2 - 4
         b = shiftstr(b, -1);
         return sub(a, b); //if b is negative subtract b from a
-    } else if (a[0] == '-' && b[0] == '-')
-        negative = true; //if both are negative answer will be negative
+    } else if (a[0] == '-' && b[0] == '-') {
+        negative = true;
+        a++;
+        b++;
+    } //if both are negative answer will be negative
 
     char result[MAX_DIGIT + 2], x[MAX_DIGIT + 2], y[MAX_DIGIT + 2];  // +1 character for '-', +1 for '\0'
 
-    for (int k = strlen(a) - 1; k >= 0 ; k--) {
+    for (int k = (int) strlen(a) - 1; k >= 0 ; k--) {
         x[strlen(a) -1 - k] = *(a + k);
     }
     x[strlen(a)] = '\0';
 
-    for (int k = strlen(b) - 1; k >= 0; k--) {
+    for (int k = (int) strlen(b) - 1; k >= 0; k--) {
         y[strlen(b) -1 - k] = *(b + k);
     }
     y[strlen(b)] = '\0';
@@ -110,15 +135,15 @@ char *add(char *a, char *b) { //add keyword operations
     }
 
     result[i] = '\0';
-    strrev(result);
+    reverse(result);
     if (negative) { //if we found our calculation going to be below zero add '-' at the start of result
-        for (int j = strlen(result); j > 0; j--) { //shift right by one character
+        for (int j = (int) strlen(result); j > 0; j--) { //shift right by one character
             result[j] = result[j - 1];
         }
         result[0] = '-';
         result[i + 1] = '\0'; //update end of string
     }
-    return strdup(result);
+    return duplicate(result);
 }
 
 char *sub(char *a, char *b) { //sub keyword operations
@@ -126,37 +151,30 @@ char *sub(char *a, char *b) { //sub keyword operations
         return "0";
     //almost same calculations we made in add function
     bool negative = false;
-    if (a[0] != '-' && b[0] == '-') { // +x - (-y) = x + y
-        b = shiftstr(b, -1); // shift left by one character we dont need '-'
-        return add(a, b); //"sub - from +" is equal to "add + to +"
-    } else if (a[0] == '-' && b[0] != '-') { // -x - x = -x + (-x)
-        b = shiftstr(b, 1); // 42 to 042 shift for adding a space for negative sign
+    if (a[0] != '-' && b[0] == '-') {
+        return add(a, b + 1);
+    } else if (a[0] == '-' && b[0] != '-') {
+        b = shiftstr(b, 1);
         b[0] = '-';
-        return add(a, b); //if b is negative subtract b from a
+        return add(a, b);
     } else if (a[0] == '-' && b[0] == '-') {
-        if (strlen(a) > strlen(b)) {
-            negative = true;
-        } else if (strlen(a) == strlen(b) && strcmp(a, b) > 0) { //-4 - (-2) = -6
-            negative = true;
-        }
-    } else if (strlen(a) < strlen(b)) { //if strlen of the second number is already bigger than first number result must be a negative number 4 - 42 = -38
+        return sub(b + 1, a + 1);
+    }
+    if (compare(a, b) < 0) {
         negative = true;
-    } else if (strlen(b) == strlen(a) && strcmp(b, a) > 0) { // 2 - 4 = -2
-        //do 4 - 2 first, then add a negative sign
-        negative = true;
-        char *temp = b;
-        b = a;
-        a = temp;
+        char *temp = a;
+        a = b;
+        b = temp;
     }
 
     char result[MAX_DIGIT + 2], x[MAX_DIGIT + 2], y[MAX_DIGIT + 2];
 
 
-    for (int k = strlen(a) - 1; k >= 0 ; k--) {
+    for (int k = (int) strlen(a) - 1; k >= 0 ; k--) {
         x[strlen(a) -1 - k] = *(a + k);
     }
     x[strlen(a)] = '\0';
-    for (int k = strlen(b) - 1; k >= 0; k--) {
+    for (int k = (int) strlen(b) - 1; k >= 0; k--) {
         y[strlen(b) -1 - k] = *(b + k);
     }
     y[strlen(b)] = '\0';
@@ -196,29 +214,22 @@ char *sub(char *a, char *b) { //sub keyword operations
     }
 
     result[i] = '\0';
-    strrev(result);
+    reverse(result);
 
-    if (result[0] == '0' && strlen(result) > 1) { //0002 remove zeros
-        int zero_count = 0;
-        for (int j = 0; j < strlen(result); j++) { //count how many unwanted zeros at the beginning
-            if (result[j] == '0')
-                zero_count++;
-            else
-                break;
-        }
-        for (int j = 0; j < strlen(result); j++) { //remove zeros by shifting
-            result[j] = result[j + zero_count];
-        }
-    }
+    size_t zero_count = 0;
+    while (result[zero_count] == '0' && result[zero_count + 1] != '\0')
+        zero_count++;
+    memmove(result, result + zero_count, strlen(result + zero_count) + 1);
+    i = (int) strlen(result);
     if (negative) { //add '-' at the start of result
-        for (int j = strlen(result); j > 0; j--) { //shift right by one character
+        for (int j = (int) strlen(result); j > 0; j--) { //shift right by one character
             result[j] = result[j - 1];
         }
         result[0] = '-';
         result[i + 1] = '\0'; //update end of string
     }
 
-    return strdup(result);
+    return duplicate(result);
 }
 
 char *shiftstr(char *str, int n) {
@@ -226,22 +237,21 @@ char *shiftstr(char *str, int n) {
         str = str + abs(n);
         return str;
     } else if (n > 0) { // 4 to 04 if n=1 | 23 to 00023 if n=3
-        char *new_str = malloc(sizeof(char) * (strlen(str) + n));
-        for (int i = 0; i < strlen(str) + n; ++i) {
-            if (i < n)
-                *(new_str + i) = '0';
-            else
-                *(new_str + i) = str[i - n];
+        size_t length = strlen(str);
+        size_t shift = (size_t) n;
+        char *new_str = malloc(length + shift + 1);
+        if (!new_str) {
+            fputs("Memory allocation failed.\n", stderr);
+            exit(EXIT_FAILURE);
         }
-        *(new_str + strlen(str) + n) = '\0';
-        free(str);
+        memset(new_str, '0', shift);
+        memcpy(new_str + shift, str, length + 1);
         return new_str;
     } else
         return str;
 }
 
 int error(int type, char *info, struct token t) { //throw errors for every type
-    system("cls");
     printf("Error on line %d column %d: ", t.line, t.column);
     if (type == 1) // expected
         printf("Unexpected %s '%s'. %s.", t.type, t.value, info);
@@ -262,16 +272,12 @@ int error(int type, char *info, struct token t) { //throw errors for every type
     else if (type == 9)
         printf("'%s' is not valid variable name. It must start with an alphabetic character.", t.value);
 
-    printf("\nPress enter button to end program if you want to compile it solve problem and try again...");
-    fseek(stdin, 0, SEEK_END);
-    getchar();
-    return -1;
+    printf("\n");
+    return EXIT_FAILURE;
 }
 
 int stop() {
-    fseek(stdin, 0, SEEK_END);
-    getchar();
-    return -1;
+    return EXIT_FAILURE;
 }
 
 char *valueof(struct token target) { //finds value of a token it can be integer or identifier if target token is identifier we already know its value
@@ -303,9 +309,17 @@ int set(char *target_name, char *new_val) { //sets value of an identifier
 void push(struct stack *st, char c) {
     if (st->elements == NULL) { //allocating some space
         st->elements = malloc(INITIAL_MAX * sizeof(char));
+        if (!st->elements) {
+            fputs("Memory allocation failed.\n", stderr);
+            exit(EXIT_FAILURE);
+        }
     } else if (st->top == st->max - 1) { //if its full reallocate some more space
         st->max *= 2; //double the capacity
         char *more_elements = realloc(st->elements, st->max * sizeof(char));
+        if (!more_elements) {
+            fputs("Memory allocation failed.\n", stderr);
+            exit(EXIT_FAILURE);
+        }
         st->elements = more_elements;
     }
     st->top++;
@@ -313,12 +327,6 @@ void push(struct stack *st, char c) {
 }
 
 char pop(struct stack *st) {
-    if ((st->max / 2) > (st->top + 10)) { //more than half of it is empty
-        st->max /= 2;
-        char *less_elements = malloc(st->max * sizeof(char));
-        free(st->elements);
-        st->elements = less_elements;
-    }
     if (st->top == -1) {
         //stack is empty return null
         return '\0';
@@ -372,187 +380,172 @@ int compare(char *a, char *b) { //basic comparing method which is comparing 2 nu
 int main(int argc, char *argv[]) {
     char keywords[10][10] = {"int", "move", "add", "to", "sub", "from", "loop", "times", "out", "newline"};
     int line_count = 1;
-    char *filename;
-    bool arg_handled = false;
-
-    if (argc <= 1) { //memory allocating for filename
-        filename = malloc(100 * sizeof(char));
-        *(filename) = '\0';
-    } else if (argc == 2)
-        filename = argv[1];
-    else {
-        //if more than one argument is entered
-        printf("Too many arguments given one argument expected.");
-        return stop();
+    char filename[FILENAME_LIMIT];
+    if (argc > 2) {
+        fputs("Expected at most one filename argument.\n", stderr);
+        return EXIT_FAILURE;
     }
-
-    while (true) { //if file cannot found or user didnt enter correct file name going to loop until user enters correct file name
-        if (argc <= 1 || arg_handled) {
-            printf("Enter a file name: ");
-            scanf(" %[^\n]s", filename);
-        } else {
-            arg_handled = true;
+    if (argc == 2) {
+        if (strlen(argv[1]) >= sizeof(filename) - 3) {
+            fputs("Filename is too long.\n", stderr);
+            return EXIT_FAILURE;
         }
-        bool filename_ok = false;
-        if (strstr(filename, ".") != NULL) { //in my first project design file name was taken as filename.ba in this second design im getting either filename or filename.ba
-            strrev(filename);               //in this section checking this condition and adding .ba extension if its necessary
-            if (filename[0] == 'a' && filename[1] == 'b' && filename[2] == '.') {
-                strrev(filename);
-                filename_ok = true;
-            } else {
-                printf("Error -> Given file extension is not true! File extension must be '.ba'\n");
-            }
-        } else {
-            int len = (int) strlen(filename);
-            filename[len] = '.';
-            filename[len + 1] = 'b';
-            filename[len + 2] = 'a';
-            filename[len + 3] = '\0';
-            filename_ok = 1;
+        strcpy(filename, argv[1]);
+    } else {
+        printf("Enter a file name: ");
+        if (!fgets(filename, sizeof(filename), stdin))
+            return EXIT_FAILURE;
+        size_t length = strcspn(filename, "\r\n");
+        if (filename[length] == '\0' && !feof(stdin)) {
+            fputs("Filename is too long.\n", stderr);
+            return EXIT_FAILURE;
         }
-        if (filename_ok) {
-            if (access(filename, F_OK) == -1) {
-                printf("File can't found.\n");
-            } else {
-                break;
-            }
-        }
+        filename[length] = '\0';
     }
-
-    FILE *source_code = fopen(filename, "r");//open file
+    size_t filename_length = strlen(filename);
+    if (!filename_length || filename_length >= sizeof(filename) - 3) {
+        fputs("Invalid filename length.\n", stderr);
+        return EXIT_FAILURE;
+    }
+    char *basename = strrchr(filename, '/');
+    char *backslash = strrchr(filename, '\\');
+    if (!basename || (backslash && backslash > basename))
+        basename = backslash;
+    basename = basename ? basename + 1 : filename;
+    char *extension = strrchr(basename, '.');
+    if (!extension)
+        strcat(filename, ".ba");
+    else if (strcmp(extension, ".ba") != 0) {
+        fputs("File extension must be '.ba'.\n", stderr);
+        return EXIT_FAILURE;
+    }
+    FILE *source_code = fopen(filename, "r");
+    if (!source_code) {
+        perror(filename);
+        return EXIT_FAILURE;
+    }
     char lexeme[105];
-    struct token tokens[1000];
+    struct token tokens[TOKEN_LIMIT];
     int token_count = 0;
-    int eof_col = 0;
-
-    int i = 0, col = 0, start_column = 0;
-    bool is_reading_comment = false, is_reading_string = false, is_integer = true;
+    int i = 0, col = 0, start_column = 0, start_line = 1;
+    bool is_reading_comment = false, is_reading_string = false;
     while (1) {
-        char c = (char) fgetc(source_code); //read one char from source
-
-        if (c == '{' && !is_reading_comment && !is_reading_string) { //ignore parenthesis
-            is_reading_comment = true;
-            continue;
-        } else if (c == '}' && is_reading_comment && !is_reading_string) {
-            is_reading_comment = false;
-            continue;
+        int c = fgetc(source_code);
+        if (c == 0) {
+            fputs("Input contains a NUL byte.\n", stderr);
+            fclose(source_code);
+            return EXIT_FAILURE;
         }
-
-        col++; //adding +1 to column because we need it for error throw
-        if (i == 0) { //first char
-            start_column = col;
+        if (c != EOF)
+            col++;
+        if (is_reading_comment) {
+            if (c == EOF) {
+                fputs("Unterminated comment.\n", stderr);
+                fclose(source_code);
+                return EXIT_FAILURE;
+            }
+            if (c == '}')
+                is_reading_comment = false;
+        } else if (is_reading_string) {
+            if (c == EOF) {
+                fputs("Unterminated string.\n", stderr);
+                fclose(source_code);
+                return EXIT_FAILURE;
+            }
+            if (c == '"') {
+                if (token_count >= TOKEN_LIMIT - 4) {
+                    fputs("Token limit exceeded.\n", stderr);
+                    fclose(source_code);
+                    return EXIT_FAILURE;
+                }
+                lexeme[i] = '\0';
+                tokens[token_count++] = (struct token){"string", duplicate(lexeme), start_line, start_column};
+                i = 0;
+                is_reading_string = false;
+            } else {
+                if (i >= (int) sizeof(lexeme) - 1) {
+                    fputs("String length limit exceeded.\n", stderr);
+                    fclose(source_code);
+                    return EXIT_FAILURE;
+                }
+                lexeme[i++] = (char) c;
+            }
+        } else {
+            bool delimiter = c == EOF || isspace((unsigned char) c) || strchr(".,[]{}\"", c) != NULL;
+            if (delimiter && i != 0) {
+                if (token_count >= TOKEN_LIMIT - 4) {
+                    fputs("Token limit exceeded.\n", stderr);
+                    fclose(source_code);
+                    return EXIT_FAILURE;
+                }
+                lexeme[i] = '\0';
+                char *type = "identifier";
+                bool integer = true;
+                for (int j = 0; j < i; j++) {
+                    if (!isdigit((unsigned char) lexeme[j]) && lexeme[j] != '-')
+                        integer = false;
+                }
+                if (integer)
+                    type = "integer";
+                for (int j = 0; j < 10; j++) {
+                    if (strcmp(lexeme, keywords[j]) == 0)
+                        type = "keyword";
+                }
+                tokens[token_count++] = (struct token){type, duplicate(lexeme), start_line, start_column};
+                i = 0;
+            }
+            if (c == '{') {
+                is_reading_comment = true;
+            } else if (c == '"') {
+                is_reading_string = true;
+                start_line = line_count;
+                start_column = col;
+            } else if (c == '.' || c == ',' || c == '[' || c == ']') {
+                if (token_count >= TOKEN_LIMIT - 4) {
+                    fputs("Token limit exceeded.\n", stderr);
+                    fclose(source_code);
+                    return EXIT_FAILURE;
+                }
+                char *type = c == '.' ? "eol" : c == ',' ? "comma" : "parenthesis";
+                char *value = c == '.' ? "." : c == ',' ? "," : c == '[' ? "[" : "]";
+                tokens[token_count++] = (struct token){type, value, line_count, col};
+            } else if (!delimiter) {
+                if (!isalnum((unsigned char) c) && c != '_' && c != '-') {
+                    fprintf(stderr, "Unexpected character at line %d, column %d.\n", line_count, col);
+                    fclose(source_code);
+                    return EXIT_FAILURE;
+                }
+                if (i >= (int) sizeof(lexeme) - 1) {
+                    fputs("Lexeme length limit exceeded.\n", stderr);
+                    fclose(source_code);
+                    return EXIT_FAILURE;
+                }
+                if (i == 0) {
+                    start_line = line_count;
+                    start_column = col;
+                }
+                lexeme[i++] = (char) c;
+            } else if (c == '}') {
+                fputs("Unexpected closing comment delimiter.\n", stderr);
+                fclose(source_code);
+                return EXIT_FAILURE;
+            }
         }
         if (c == '\n') {
-            eof_col = col;
-            col = 0;
             line_count++;
-        }
-
-        if (!is_reading_comment) { //after ignoring parenthesis we know we are going to use every element right now
-            if (c == '"') {//string
-                if (is_reading_string) { //string ended or not
-                    lexeme[i] = '\0';
-                    tokens[token_count].type = "string";
-                    tokens[token_count].value = strdup(lexeme);
-                    token_count++;
-                    i = 0;
-                }
-                is_reading_string = !is_reading_string;
-                continue;
-            }
-            if (is_reading_string) {
-                lexeme[i++] = c;
-            }
-
-            if (!is_reading_string) {
-                if ((c >= 65 && c <= 91) || (c >= 97 && c <= 123) || (c >= 48 && c <= 57) || (c >= 44 && c <= 46)
-                    || c == 93 || c == 125 || c == 32 || c == 9 || c == 10 || c == 95 || c == -1) { //every char number and others (like parenthesis and \n) values took from ascii table
-
-
-                    if (c == '[') {//parenthesis
-                        tokens[token_count].type = "parenthesis";
-                        tokens[token_count].value = "[";
-                        tokens[token_count].line = line_count;
-                        tokens[token_count].column = start_column;
-                        token_count++;
-                        continue;
-                    } else if (c == ']') {//parenthesis closes
-                        tokens[token_count].type = "parenthesis";
-                        tokens[token_count].value = "]";
-                        tokens[token_count].line = line_count;
-                        tokens[token_count].column = start_column;
-                        token_count++;
-                        continue;
-                    }
-
-                    if (c != ' ' && c != '.' && c != '\t' && c != '\n' && c != ',' && c != EOF) { //'special' chars
-                        if ((c < 48 && c != 45) || c > 57)
-                            is_integer = false;
-
-                        lexeme[i++] = c;
-                    } else {
-                        if (i != 0) { // is lexeme empty
-                            lexeme[i] = '\0';
-                            bool is_keyword = false;
-                            for (int j = 0; j < 10; j++) { //if lexeme is a keyword take it (taking line and column numbers if error throw needed later)
-                                if (strcmp(lexeme, keywords[j]) == 0) {//keyword
-                                    tokens[token_count].type = "keyword";
-                                    tokens[token_count].value = strdup(lexeme);
-                                    tokens[token_count].line = line_count;
-                                    tokens[token_count].column = start_column;
-                                    token_count++;
-                                    is_keyword = true;
-                                    break;
-                                }
-                            }
-
-                            if (!is_keyword) {//integer
-                                if (is_integer) {
-                                    tokens[token_count].type = "integer";
-                                    tokens[token_count].value = strdup(lexeme);
-                                    tokens[token_count].line = line_count;
-                                    tokens[token_count].column = start_column;
-                                    token_count++;
-                                } else {//identifier
-                                    tokens[token_count].type = "identifier";
-                                    tokens[token_count].value = strdup(lexeme);
-                                    tokens[token_count].line = line_count;
-                                    tokens[token_count].column = start_column;
-                                    token_count++;
-                                }
-                            }
-                        }
-                        if (c == '.') {//dot is end of line
-                            tokens[token_count].type = "eol";
-                            tokens[token_count].value = ".";
-                            tokens[token_count].line = line_count;
-                            tokens[token_count].column = start_column;
-                            token_count++;
-                        } else if (c == ',') {//comma
-                            tokens[token_count].type = "comma";
-                            tokens[token_count].value = ",";
-                            tokens[token_count].line = line_count;
-                            tokens[token_count].column = start_column;
-                            token_count++;
-                        }
-                        i = 0;
-                        is_integer = true;//resetting
-
-                    }
-                } else { //if character is not in ascii range throw an error
-                    printf("Unexpected character: %c in line %d, column %d", c, line_count, col);
-                    return stop();
-                }
-            }
+            col = 0;
         }
         if (c == EOF)
             break;
     }
-    fclose(source_code);//file closed end ended (recording file ended because can be an error later)
-    tokens[token_count].type = "end of file";
-    tokens[token_count].value = "EOF";
-    tokens[token_count].line = line_count;
-    tokens[token_count].column = eof_col;
+    if (ferror(source_code)) {
+        fputs("Source read failed.\n", stderr);
+        fclose(source_code);
+        return EXIT_FAILURE;
+    }
+    fclose(source_code);
+    for (int j = token_count; j < token_count + 4; j++)
+        tokens[j] = (struct token){"end of file", "EOF", line_count, col};
     //file readed and every word saved interpreting starts now
     struct stack p_stack;
     p_stack.max = INITIAL_MAX;
@@ -568,7 +561,7 @@ int main(int argc, char *argv[]) {
             if (strstr(tokens[l].value, "-") != NULL) //is identifier valid
                 return error(5, NULL, tokens[l]);
 
-            if (tokens[l].value[0] >= 48 && tokens[l].value[0] <= 57 ) //is first char num
+            if (!isalpha((unsigned char) tokens[l].value[0])) //is first char num
                 return error(9, NULL, tokens[l]);
 
         } else if (strcmp(tokens[l].type, "integer") == 0) {
@@ -581,15 +574,20 @@ int main(int argc, char *argv[]) {
             if (strlen(tokens[l].value) > digit_limit)
                 return error(4, NULL, tokens[l]); //is digit len ok
 
-            int dash_count = 0;
-            char *temp = tokens[l].value;
-            while (strstr(temp, "-") != NULL) {
-                dash_count++;
-                temp++;
+            char *number = tokens[l].value;
+            int first_digit = number[0] == '-' ? 1 : 0;
+            if (!number[first_digit])
+                return error(6, NULL, tokens[l]);
+            for (int j = first_digit; number[j]; j++) {
+                if (!isdigit((unsigned char) number[j]))
+                    return error(6, NULL, tokens[l]);
             }
-            if (dash_count > 1)
-                return error(6, NULL, tokens[l]); //is int valid
-
+            int leading_zeroes = first_digit;
+            while (number[leading_zeroes] == '0' && number[leading_zeroes + 1])
+                leading_zeroes++;
+            memmove(number + first_digit, number + leading_zeroes, strlen(number + leading_zeroes) + 1);
+            if (strcmp(number, "-0") == 0)
+                strcpy(number, "0");
         } else if (strcmp(tokens[l].type, "parenthesis") == 0) {
             if (strcmp(tokens[l].value, "[") == 0) {
                 push(&p_stack, '[');
@@ -616,6 +614,8 @@ int main(int argc, char *argv[]) {
     i = 0;
     //loop is interpreting in itself because there can be a loop in the loop
     while (i < token_count) {
+        if (strcmp(tokens[i].value, "]") == 0 && l_level < 0)
+            return error(1, "Unexpected closing parenthesis", tokens[i]);
         if (strcmp(tokens[i].type, "keyword") == 0 || strcmp(tokens[i].value, "]") == 0) {
             if (strcmp(tokens[i].value, "int") == 0) { //check types
                 i++;
@@ -628,6 +628,10 @@ int main(int argc, char *argv[]) {
                 if (strcmp(get(tokens[i].value), "not declared") != 0)//get check token declared or not
                     return error(3, NULL, tokens[i]);
 
+                if (symbol_count >= 100) {
+                    fputs("Symbol limit exceeded.\n", stderr);
+                    return EXIT_FAILURE;
+                }
                 symbol_table[symbol_count].name = tokens[i].value;
                 symbol_table[symbol_count].value = "0";
                 symbol_count++;
@@ -716,15 +720,17 @@ int main(int argc, char *argv[]) {
                 i += 4; //substraction
             } else if (strcmp(tokens[i].value, "out") == 0) { //output
                 i++;
-                while (i < token_count) { //print everything
+                if (i >= token_count)
+                    return error(1, "Expected an output value", tokens[i]);
+                while (true) { //print everything
                     if (strcmp(tokens[i].type, "string") == 0) {
-                        printf(tokens[i].value);
+                        printf("%s", tokens[i].value);
                     } else if (strcmp(tokens[i].type, "identifier") == 0) {
                         char *value = valueof(tokens[i]);
                         if (strcmp(value, "not declared") == 0)
                             return error(2, NULL, tokens[i]);
 
-                        printf(value);
+                        printf("%s", value);
                     } else if (strcmp(tokens[i].value, "newline") == 0) {
                         printf("\n");
                     } else
@@ -750,9 +756,15 @@ int main(int argc, char *argv[]) {
                     return error(1, "Expected keyword 'times'", tokens[i + 1]);
 
                 char *loop_count = valueof(tokens[i]);
+                if (strcmp(loop_count, "not declared") == 0)
+                    return error(2, NULL, tokens[i]);
                 if (compare(loop_count, "1") == -1)
                     return error(8, NULL, tokens[i]);
 
+                if (l_level >= 99) {
+                    fputs("Loop nesting limit exceeded.\n", stderr);
+                    return EXIT_FAILURE;
+                }
                 l_level++;
                 l_vars[l_level] = tokens[i];
 
@@ -798,8 +810,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    printf("\n\nInterpreting ended you can press enter to exit.");
-    fseek(stdin, 0, SEEK_END);
-    getchar();
+    printf("\n\nInterpreting ended.\n");
+    free(p_stack.elements);
     return 0;
 } //program ended
